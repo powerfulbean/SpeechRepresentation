@@ -122,37 +122,3 @@ class CDissimilarityVector:
         lowerWords(words)
         vectors = wordVec['vec']
         return words, vectors
-        
-        
-# sentencesOfText = ["He was an old man who fished alone in a skiff in the Gulf Stream and he had gone \
-# eighty-four days now without taking a fish.","In the first forty days a boy had been with him." ] #A list of single sentence.
-
-
-# singleOutWord = list()
-# singleOutVec = list()
-# sentDict = dict()
-# # cacheWordList = []
-# # cacheVecList = []
-# for idx,sent in enumerate(sentencesOfText):
-#     hIdx = len(singleOutWord)
-#     wordList,vecList = processSingleSent(model,tokenizer,sent)
-#     singleOutWord += wordList
-#     singleOutVec += vecList
-#     tIDx = len(singleOutWord)
-#     sentDict[idx] = (hIdx,tIDx) #tIdx is not included in this sentence
-
-# wordVec = {'word':singleOutWord,'vec':singleOutVec,
-#                         'sentence':sentDict}
-
-# #load michael's funcitonal word
-# funcWords = [str(i[0][0]) for i in loadmat('funcWords.mat')['funcWords']]
-
-# #by default we didn't use andy's funcitonal word
-# #load Andy's functional word
-# with open("ajaFunctionWordList.txt",'r') as f:
-#     lines = f.readlines()
-#     funcwords2 = [i.strip('\n') for i in lines]
-
-
-
-# wordVec = buildDisVec(wordVec,funcWords)
