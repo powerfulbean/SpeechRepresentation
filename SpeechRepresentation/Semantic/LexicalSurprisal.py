@@ -71,6 +71,7 @@ class GPT2LMHeadModelNoReduceLoss(GPT2LMHeadModel):
 
         loss = None
         if labelsNoShift is not None:
+            """ we chose to shift it by our self before input into this func """
             # Shift so that tokens < n predict n
             logits = lm_logits[..., :, :].contiguous()
             labels = labelsNoShift[..., 0:].contiguous()
@@ -194,18 +195,23 @@ class CGPT2:
     
     #surprisal = crossentropyloss in this case
     
-    def __init__(self,modelName = 'gpt2',hopSize = 1,useCache = True,ifIncludePuncValue = True):
+    def __init__(self,modelName = 'gpt2',hopSize = 1,useCache = True,
+                 ifIncludePuncValue = True,clearMemForEachSent = True,seperateQuote = True,
+                 nPositions = 1024,device = torch.device('cpu')):
         self.tokenizer = GPT2Tokenizer.from_pretrained(modelName)
-        self.model = GPT2LMHeadModelNoReduceLoss.from_pretrained(modelName).eval()
+        self.model = GPT2LMHeadModelNoReduceLoss.from_pretrained(modelName,).eval()
         self.hopSize = hopSize
         self.specialTokens = self.tokenizer.all_special_tokens
         self.SPACETOKEN = 'Ġ'
         self.puncSet = " .,?!';\")("
         self.useCache = useCache
-        self.nPositions = self.model.config.n_positions
+        self.nPositions = nPositions
         self.hopSize = hopSize
+        self.model.config.n_positions = nPositions
         self.oPastKeyValue = CPastKeyValuesCache(self.model.config)
         self.ifIncludePuncValue = ifIncludePuncValue
+        self.clearMemForEachSent = clearMemForEachSent
+        self.seperateQuote = seperateQuote
 
     def fValue(self,token,value):
         if not self.ifIncludePuncValue:
@@ -213,17 +219,27 @@ class CGPT2:
                 value = 0
         return value
 
-    def get(self,text,reduce = 'sum'):
-        wordList,vecList = self.textToVec(text, self.getSurprisal)
+    def get(self,text,reduce = 'sum',fVecProcess = None):
+        if fVecProcess is None:
+            fVecProcess = CGPT2.getSurprisal
+        wordList,vecList = self.textToVec(text, fVecProcess)
         wordList,vecList = self.textToVecPostProcess(wordList,vecList,reduce = reduce)
         return wordList, np.array(vecList)
-        
-    def getSurprisal(self,output,idx,tokens):
+       
+    @classmethod
+    def getSurprisal(cls,output,idx,tokens):
         loss = output['loss'][idx].item()
         return np.array([loss])
     
-    def textToVec(self,sent,fVecProcess,seperateQuote = True,inputsOperation = lambda x:x,clearMemForEachSent = True,ifIncludePuncValue = False):
-        self.ifIncludePuncValue = ifIncludePuncValue
+    @classmethod
+    def getPredEntropy(cls,output, idx, tokens):
+        logits = output['logits'].detach()[0][idx]
+        prob = torch.softmax(logits, dim = 0).numpy()
+        return np.array([- np.sum(prob * np.log(prob))])
+    
+    def textToVec(self,sent,fVecProcess,inputsOperation = lambda x:x):
+        seperateQuote = self.seperateQuote
+        clearMemForEachSent = self.clearMemForEachSent
         assert callable(fVecProcess)
         sentListWord = list()
         sentListVec = list()
@@ -244,6 +260,7 @@ class CGPT2:
             self.input = inputs
             #need more logics at here, for prediction
             outputs = self.model(**inputs)
+            # print(len(outputs['loss']))
             self.oPastKeyValue.append(outputs.get('past_key_values'),nLeastEmptySpace=self.hopSize)
             inputIds = inputs['input_ids']
             tokens = self.tokenizer.convert_ids_to_tokens(inputIds[0].numpy())
@@ -260,7 +277,7 @@ class CGPT2:
                         if idx < len(tokens) - 1:
                             if tokens[idx+1][0] != self.SPACETOKEN:
                                 tokens[idx+1] = self.SPACETOKEN + tokens[idx+1]
-                    elif self.SPACETOKEN in i or idx == 0:
+                    elif self.SPACETOKEN in i or cnt == 1:
                         sentListWord.append([i.replace(self.SPACETOKEN,'')])
                         sentListVec.append([self.fValue(i,value)])
                     else:
@@ -281,6 +298,7 @@ class CGPT2:
         
         if clearMemForEachSent:
             self.oPastKeyValue.clear()
+        # print(len(vecQueue))
         
         return sentListWord,sentListVec
     

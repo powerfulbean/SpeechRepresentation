@@ -11,6 +11,7 @@ import numpy as np
 import gensim.downloader
 import gensim
 import os
+from MindModel.MindCognition.MindLanguage import vecToContextDisVec
 
 from ..Utils import lowerWords
 
@@ -116,9 +117,8 @@ class CDissimilarityVector:
         #load michael's funcitonal word
         print(self.funcWordsPath)
         funcWords = [str(i[0][0]) for i in loadmat(self.funcWordsPath)['funcWords']]
-        
+        lowerWords(wordVec['word'])
         wordVec = buildDisVec(wordVec,funcWords)
-        words = wordVec['word']
-        lowerWords(words)
         vectors = wordVec['vec']
+        words = wordVec['word']
         return words, vectors

@@ -21,6 +21,13 @@ class CWordStim:
         self.endTimes = []
         self.vectors = []
         
+    def init(self,words, startTimes, endTimes):
+        self.words.extend(words)
+        self.startTimes.extend(startTimes)
+        self.endTimes.extend(endTimes)
+        self.vectors.extend([None] * len(words))
+        return words, startTimes, endTimes
+        
     def loadWordTiming(self,filePath):
         dataframe = pd.read_csv(filePath)
         words = dataframe['word'].tolist()
@@ -49,14 +56,18 @@ class CWordStim:
                 self.vectors[idx2] = vectors[idx]
                 idx += 1
             elif words[idx] in i:
-                vecListTemp = [vectors[idx]]
-                charListTemp = [words[idx]]
-                idx += 1
-                while ''.join(charListTemp) in i and ''.join(charListTemp) != i:
-                    vecListTemp.append(vectors[idx])
-                    charListTemp.append(words[idx])
+                if words[idx+1] == self.words[idx2+1]:
+                    self.vectors[idx2] = vectors[idx]
                     idx += 1
-                self.vectors[idx2] = fReduce(vecListTemp,axis=0)
+                else:
+                    vecListTemp = [vectors[idx]]
+                    charListTemp = [words[idx]]
+                    idx += 1
+                    while ''.join(charListTemp) in i and ''.join(charListTemp) != i:
+                        vecListTemp.append(vectors[idx])
+                        charListTemp.append(words[idx])
+                        idx += 1
+                    self.vectors[idx2] = fReduce(vecListTemp,axis=0)
             else:
                 raise ValueError(idx2,words[idx],i)
         if len(words) < len(self.words):
@@ -65,6 +76,71 @@ class CWordStim:
         self.vectors = np.array(self.vectors)
         self.startTimes = np.array(self.startTimes)
         self.endTimes = np.array(self.endTimes)
+    
+    def alignVec2(self, words, vectors, fReduce = np.mean):
+        pntDP = 0
+        pntTrial = 0
+        rePunc = '[\.!,?\]\[\":;\)\(\-\']'
+        wordsAdded = 0
+        import re
+        def cleanWord(word):
+            return re.sub(rePunc,'',word)
+        while pntTrial < len(self.words):
+            wDP = words[pntDP]#.replace('.','')
+            wTrial = self.words[pntTrial]#.replace('.','')
+            wDP = re.sub(rePunc,'',wDP)
+            wTrial = re.sub(rePunc,'', wTrial)
+            if wTrial == wDP: #just totally equal
+                self.vectors[pntTrial] = vectors[pntDP]
+                wordsAdded += 1
+                pntDP += 1
+                pntTrial += 1
+            elif wTrial in wDP: #word in curTrial is part of the word in curDP
+                self.vectors[pntTrial] = vectors[pntDP]
+                wordsAdded += 1
+                if pntTrial + 1 == len(self.words):#the end of curTrial
+                    pass
+                elif words[pntDP+1] == self.words[pntTrial+1]:
+                    pntDP += 1
+                    pntTrial += 1
+                else:
+                    pntTrial += 1
+            elif wDP in wTrial:
+                #first check if needs to create a list
+                if not isinstance(self.vectors[pntTrial], list):
+                    self.vectors[pntTrial] = []
+                self.vectors[pntTrial].append(vectors[pntDP])
+                
+                #then check if needs reduce the list, and move on the pnt
+                reduceFlag = False
+                if pntTrial + 1 == len(self.words):#the end of curTrial
+                    #need to reduce, and break
+                    reduceFlag = True
+                elif words[pntDP+1] == self.words[pntTrial+1] or \
+                    wDP + cleanWord(words[pntDP+1]) == wTrial + cleanWord(self.words[pntTrial+1]):
+                    # print((words[pntDP+1],self.words[pntTrial+1]), 
+                          # (wDP + cleanWord(words[pntDP+1]),wTrial + cleanWord(self.words[pntTrial+1])))
+                    pntDP += 1
+                    pntTrial += 1
+                    reduceFlag = True
+                else:
+                    pntDP += 1
+                
+                if reduceFlag:
+                    # print(pntTrial, wDP, wTrial, self.vectors[wordsAdded])
+                    self.vectors[wordsAdded] = fReduce(self.vectors[wordsAdded],axis=0)
+                    wordsAdded += 1
+                
+            else:
+                print(wDP,wTrial)
+                raise NotImplementedError()
+        if len(words) < len(self.words):
+            print(len(words),len(self.words))
+        assert len(words) >= len(self.words)
+        self.vectors = np.array(self.vectors)
+        self.startTimes = np.array(self.startTimes)
+        self.endTimes = np.array(self.endTimes)
+    
     
     def toImpulses(self,f:float,padding_s = 0):
         '''
