@@ -49,8 +49,11 @@ def test_lexical_surprisal():
     oStim.lowerWords()
     oStim.alignVecToWordTiming(words, vectors)
     impulses = oStim.toImpulses(f = 64)
-    return impulses, vectors
+    return impulses, oStim.vectors, oStim.words
 
 
 # impulses, vectors1 = test_dissimilarity_impulses('glove-wiki-gigaword-100')
-impulses, vectors2 = test_dissimilarity_impulses('word2vec-google-news-300')
+# impulses, vectors2 = test_dissimilarity_impulses('word2vec-google-news-300')
+impulses, lexical_surprisal, words = test_lexical_surprisal()
+from scipy.io import savemat
+savemat('lexical_surprisal.mat', {'surprisal':lexical_surprisal})

@@ -11,7 +11,6 @@ import numpy as np
 import gensim.downloader
 import gensim
 import os
-from MindModel.MindCognition.MindLanguage import vecToContextDisVec
 
 from ..Utils import lowerWords
 
