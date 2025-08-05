@@ -29,10 +29,13 @@ class CWordStim:
         return words, startTimes, endTimes
         
     def loadWordTiming(self,filePath):
-        dataframe = pd.read_csv(filePath)
-        words = dataframe['word'].tolist()
-        startTimes =  dataframe['startTime'].tolist()
-        endTimes =  dataframe['endTime'].tolist()
+        if isinstance(filePath, str):
+            dataframe = pd.read_csv(filePath)
+            words = dataframe['word'].tolist()
+            startTimes =  dataframe['startTime'].tolist()
+            endTimes =  dataframe['endTime'].tolist()
+        else:
+            words, startTimes, endTimes = filePath
         self.words.extend(words)
         self.startTimes.extend(startTimes)
         self.endTimes.extend(endTimes)
@@ -157,6 +160,19 @@ class CWordStim:
     
     def lowerWords(self):
         lowerWords(self.words)
+
+def toImpulses(startTimes, endTimes, vectors, fs:float, padding_s = 0):
+    '''
+    # align the vectors into impulses with specific sampling rate 
+    '''
+    secLen = endTimes[-1] + padding_s
+    nLen = np.ceil( secLen * fs).astype(int)
+    nDim = vectors.shape[1]
+    out = np.zeros((nLen,nDim))
+    
+    timeIndices = np.round(startTimes * fs).astype(int)
+    out[timeIndices,:] = vectors
+    return out
 
 # class CWordVecLabel:
     

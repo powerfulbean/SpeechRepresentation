@@ -198,8 +198,8 @@ class CGPT2:
     def __init__(self,modelName = 'gpt2',hopSize = 1,useCache = True,
                  ifIncludePuncValue = True,clearMemForEachSent = True,seperateQuote = True,
                  nPositions = 1024,device = torch.device('cpu')):
-        self.tokenizer = GPT2Tokenizer.from_pretrained(modelName)
-        self.model = GPT2LMHeadModelNoReduceLoss.from_pretrained(modelName,).eval()
+        self.tokenizer = GPT2Tokenizer.from_pretrained(modelName, cache_dir = r"F:\Cache")
+        self.model = GPT2LMHeadModelNoReduceLoss.from_pretrained(modelName,cache_dir = r"F:\Cache").eval()
         self.hopSize = hopSize
         self.specialTokens = self.tokenizer.all_special_tokens
         self.SPACETOKEN = 'Ġ'
@@ -303,7 +303,7 @@ class CGPT2:
         return sentListWord,sentListVec
     
     def textToVecPostProcess(self,sentListWord,sentListVec, in_place = True, 
-                             keepPunc = False, lower = True, reduce = 'mean'):
+                             keepPunc = True, lower = True, reduce = 'mean'):
         '''
         Note that this opetation is in_place by default
         '''
@@ -329,7 +329,7 @@ class CGPT2:
                 raise ValueError
             else:
                 if keepPunc:
-                    sentListWord[idx] = "".join(i)
+                    sentListWord[idx] = "".join(i).lower()
                     sentListVec[idx]  = fReduce(sentListVec[idx],axis = 0)
                 else:
                     # sentListWord[idx] = "".join(i).lower().strip(" .,?!';\":[]")
