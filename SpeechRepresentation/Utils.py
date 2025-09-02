@@ -174,6 +174,59 @@ def toImpulses(startTimes, endTimes, vectors, fs:float, padding_s = 0):
     out[timeIndices,:] = vectors
     return out
 
+def align_reward_func(ref_wd, target_wd):
+    if ref_wd == target_wd:
+        return 1
+    elif ref_wd.startswith(target_wd):
+        return 0
+    else:
+        return -1
+
+def align_seq(ref_wds, target_wds, ref_idx, target_idx, reward_cache):
+    # here we force that each word in the target_wds either equal to 
+    #   or is a subset of a word in the ref_wds 
+    # ref_idx = real_ref_idx + 1
+    # target_idx = real_target_idx + 1
+    # two conditions: 
+    #   1) current target_wd and last_target_wd together equals or is a subset of the current_ref_word
+    #       reward_cache[ref_idx, target_idx-1] + new_reward -> reward_cache[ref_idx, target_idx]
+    #   2) current target_wd euqual to the current_ref_word
+    #       reward_cache[ref_idx-1, target_idx-1] + new_reward -> reward_cache[ref_idx, target_idx]
+    # new_ref_idx = -1
+    # new_target_idx = target_idx - 1
+    if reward_cache[ref_idx, target_idx] == -999:
+        if ref_idx == 0 and target_idx == 0:
+            return 0
+        else:
+            assert ref_idx > 0 or target_idx > 0
+            last_reward_cond1 = align_seq(
+                ref_wds, target_wds, ref_idx, target_idx-1, reward_cache
+            )
+
+            last_reward_cond2 = align_seq(
+                ref_wds, target_wds, ref_idx-1, target_idx-1, reward_cache
+            )
+
+            cond1_reward = last_reward_cond1 + align_reward_func(
+                ref_wds[ref_idx-1], target_wds[target_idx-1-1] + target_wds[target_idx-1]
+            )
+            cond2_reward = last_reward_cond2 + align_reward_func(
+                ref_wds[ref_idx-1], target_wds[target_idx-1]
+            )
+            assert cond1_reward != cond2_reward, f"please check input {ref_wds}, {target_wds}"
+            return max(cond1_reward, cond2_reward)
+    else:
+        return reward_cache[ref_idx, target_idx]
+    
+
+def align_vectors_based_on_words(ref_wds, target_wds, vectors):
+    # recursive alignment from the end to the beginning
+    if len(ref_wds) == len(target_wds):
+        assert ref_wds == target_wds
+        return vectors
+    else:
+        pass
+
 # class CWordVecLabel:
     
 #     class CLabelKeyAdapter:
